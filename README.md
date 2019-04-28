@@ -8,12 +8,12 @@ This is a pretty simple app I put together to run my 3D printers live stream. It
 ### OctoPrint - https://octoprint.org/download/
 ### OctoPrint Plugin Filament Manager - https://plugins.octoprint.org/plugins/filamentmanager/
 
+## Basic Setup
 Run PhatStats once and in the opening message the path to the text file will be displayed. Take that file path as we will need it in OBS.
 
 Install OBS and configure OBS to your liking. Once complete go into the scene for your printer and add a Text element, in there select the From File option and enter the path from before.
 
 While in OBS also go to the Hotkey section in Settings and configure the bindings for Start Stream and Stop Stream.
-
 
 ## App.config
 
