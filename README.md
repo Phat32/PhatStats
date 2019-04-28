@@ -4,6 +4,7 @@ A .NET Console app to gather OctoPrint stats to be overlayed on OBS
 This is a pretty simple app I put together to run my 3D printers live stream. It has the ability to start and stop the stream as well as get the printer data every second and write it to a text file.
 
 ## Required Software
+### Visual Studio 2019 - https://visualstudio.microsoft.com/downloads/
 ### OBS - https://obsproject.com/
 ### OctoPrint - https://octoprint.org/download/
 ### OctoPrint Plugin Filament Manager - https://plugins.octoprint.org/plugins/filamentmanager/
