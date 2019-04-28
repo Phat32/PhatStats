@@ -12,10 +12,9 @@ namespace Phat_Stats
     {
         private static readonly RestClient client = new RestClient(AppSettings.Get<string>("ApiUri"));
         private static readonly string printFile = $"{Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)}\\print.txt";
-        private static readonly string logFile = $"{Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)}\\log.txt";
-        
+        private static readonly string logFile = $"{Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)}\\log.txt";        
         private static bool isStreaming = false;
-        private static DateTime standbyTime;
+        private static DateTime standbyTime = DateTime.Now;
 
         static void Main(string[] args)
         {
@@ -94,8 +93,11 @@ namespace Phat_Stats
                 var job = JsonConvert.DeserializeObject<dynamic>(jobResponse.Content);
                 if (job["state"] == "Offline")
                 {
-                    OBS.StopStream();
-                    isStreaming = false;
+                    if (isStreaming)
+                    {
+                        OBS.StopStream();
+                        isStreaming = false;
+                    }
 
                     message.AppendLine("Offline");
                 }
@@ -117,7 +119,7 @@ namespace Phat_Stats
                             Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Starting Standby Timer");
                         }
 
-                        if (DateTime.Now.Subtract(standbyTime).TotalMinutes > 20 && isStreaming)
+                        if (DateTime.Now.Subtract(standbyTime).TotalMinutes > 30 && isStreaming)
                         {
                             OBS.StopStream();
                             isStreaming = false;
@@ -141,6 +143,14 @@ namespace Phat_Stats
                         {
                             OBS.StopStream();
                             isStreaming = false;
+                        }
+
+                        if (DateTime.Now.Subtract(standbyTime).TotalMinutes > 40 && !isStreaming)
+                        {
+                            request = new RestRequest("api/plugin/psucontrol", Method.POST);
+                            request.AddQueryParameter("apikey", AppSettings.Get<string>("ApiKey"));
+                            request.AddJsonBody(new { command = "turnPSUOff" });
+                            client.Execute(request);
                         }
 
                         message.AppendLine(GetTemps(printer, filament));
