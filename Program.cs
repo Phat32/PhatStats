@@ -53,7 +53,7 @@ namespace Phat_Stats
 
                 if (AppSettings.Get<bool>("EnableLog"))
                 {
-                    File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Starting up..." });
+                    File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Up and running" });
                 }
                 Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Up and running");
 
