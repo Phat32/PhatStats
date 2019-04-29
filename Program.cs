@@ -97,8 +97,10 @@ namespace Phat_Stats
                 {
                     if (isStreaming)
                     {
-                        OBS.StopStream();
-                        isStreaming = false;
+                        if (OBS.StopStream())
+                        {
+                            isStreaming = false;
+                        }
                     }
 
                     message.AppendLine("Offline");
@@ -123,8 +125,10 @@ namespace Phat_Stats
 
                         if (DateTime.Now.Subtract(standbyTime).TotalMinutes > 30 && isStreaming)
                         {
-                            OBS.StopStream();
-                            isStreaming = false;
+                            if (OBS.StopStream())
+                            {
+                                isStreaming = false;
+                            }
                         }
 
                         message.AppendLine("Offline");
@@ -155,6 +159,12 @@ namespace Phat_Stats
                             client.Execute(request);
 
                             isOn = false;
+
+                            if (AppSettings.Get<bool>("EnableLog"))
+                            {
+                                File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Powering down printer" });
+                            }
+                            Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Powering down printer");
                         }
 
                         message.AppendLine(GetTemps(printer, filament));
@@ -165,10 +175,12 @@ namespace Phat_Stats
                     {
                         if (!isStreaming)
                         {
-                            OBS.StartStream();
-                            isStreaming = true;
-                            isOn = true;
-                            standbyTime = DateTime.MinValue;
+                            if (OBS.StartStream())
+                            {
+                                isStreaming = true;
+                                isOn = true;
+                                standbyTime = DateTime.MinValue;
+                            }
                         }
 
                         if (standbyTime != DateTime.MinValue)

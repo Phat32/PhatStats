@@ -60,7 +60,7 @@ namespace Phat_Stats.Helpers
         }
 
         // Send a series of key presses to the Calculator application.
-        public static void StartStream()
+        public static bool StartStream()
         {
             // Make Calculator the foreground application and send it 
             // a set of calculations.
@@ -74,10 +74,14 @@ namespace Phat_Stats.Helpers
                     File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Stream Started" });
                 }
                 Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Stream Started");
+
+                return true;
             }
+
+            return false;
         }
 
-        public static void StopStream()
+        public static bool StopStream()
         {
             if (SetObs())
             {
@@ -88,7 +92,11 @@ namespace Phat_Stats.Helpers
                     File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Stream Stopped" });
                 }
                 Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Stream Stopped");
+
+                return true;
             }
+
+            return false;
         }
     }
 }
