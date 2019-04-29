@@ -9,12 +9,19 @@ This is a pretty simple app I put together to run my 3D printers live stream. It
 ### OctoPrint - https://octoprint.org/download/
 ### OctoPrint Plugin Filament Manager - https://plugins.octoprint.org/plugins/filamentmanager/
 
+## Optional
+### PSU Control - https://plugins.octoprint.org/plugins/psucontrol/
+
 ## Basic Setup
 Run PhatStats once and in the opening message the path to the text file will be displayed. Take that file path as we will need it in OBS.
 
 Install OBS and configure OBS to your liking. Once complete go into the scene for your printer and add a Text element, in there select the From File option and enter the path from before.
 
 While in OBS also go to the Hotkey section in Settings and configure the bindings for Start Stream and Stop Stream.
+
+Once everything is ready turn on PhatStats and it will turn on the stream automatically once a print beings and will turn it off automatically after 30minutes of no print activity. Operations like leveling are not factored into PhatStats as it specifically checks for if the printer is in Printing status or not.
+
+Something I also added for myself is an auto power off for the printer. I use the plugin PSU Control to turn off my printer automatically, but after some updates and adding other plugins the auto off stopped working. So I added it to this instead. After 40 minutes of nothing happening PhatStats will send the power off command for the plugin.
 
 ## App.config
 
