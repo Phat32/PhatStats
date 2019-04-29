@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using Newtonsoft.Json.Linq;
 
 namespace Phat_Stats
 {
@@ -14,6 +15,7 @@ namespace Phat_Stats
         private static readonly string printFile = $"{Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)}\\print.txt";
         private static readonly string logFile = $"{Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)}\\log.txt";        
         private static bool isStreaming = false;
+        private static bool isOn = false;
         private static DateTime standbyTime = DateTime.Now;
 
         static void Main(string[] args)
@@ -145,12 +147,14 @@ namespace Phat_Stats
                             isStreaming = false;
                         }
 
-                        if (DateTime.Now.Subtract(standbyTime).TotalMinutes > 40 && !isStreaming)
+                        if (DateTime.Now.Subtract(standbyTime).TotalMinutes > 40 && !isStreaming  && isOn)
                         {
                             request = new RestRequest("api/plugin/psucontrol", Method.POST);
                             request.AddQueryParameter("apikey", AppSettings.Get<string>("ApiKey"));
                             request.AddJsonBody(new { command = "turnPSUOff" });
                             client.Execute(request);
+
+                            isOn = false;
                         }
 
                         message.AppendLine(GetTemps(printer, filament));
@@ -163,6 +167,7 @@ namespace Phat_Stats
                         {
                             OBS.StartStream();
                             isStreaming = true;
+                            isOn = true;
                             standbyTime = DateTime.MinValue;
                         }
 
@@ -250,51 +255,52 @@ namespace Phat_Stats
         {
             var message = new StringBuilder();
 
-            if (printer["temperature"]["tool0"]["target"] > 0)
+            var toolnumber = 0;
+
+            while (printer["temperature"][$"tool{toolnumber}"] != null)
             {
-                message.AppendLine($"Tool 1: {filament["selections"][0]["spool"]["name"]} ({filament["selections"][0]["spool"]["profile"]["material"]}) {printer["temperature"]["tool0"]["actual"]}/{printer["temperature"]["tool0"]["target"]}");
-            }
-            else
-            {
-                if (printer["temperature"]["tool0"]["actual"] > 40)
+                var filamentText = string.Empty;
+
+                if ((filament["selections"] as JArray).Count > toolnumber)
                 {
-                    message.AppendLine($"Tool 1: {filament["selections"][0]["spool"]["name"]} ({filament["selections"][0]["spool"]["profile"]["material"]}) {printer["temperature"]["tool0"]["actual"]} (Cooling)");
+                    filamentText = $"{filament["selections"][toolnumber]["spool"]["name"]} ({filament["selections"][toolnumber]["spool"]["profile"]["material"]}) ";
+                }
+
+                if (printer["temperature"][$"tool{toolnumber}"]["target"] > 0)
+                {
+                    message.AppendLine($"Tool 1: {filamentText}{printer["temperature"][$"tool{toolnumber}"]["actual"]}/{printer["temperature"]["tool0"]["target"]}");
                 }
                 else
                 {
-                    message.AppendLine($"Tool 1: Off");
+                    if (printer["temperature"]["tool0"]["actual"] > 40)
+                    {
+                        message.AppendLine($"Tool {toolnumber+1}: {filamentText}{printer["temperature"][$"tool{toolnumber}"]["actual"]} (Cooling)");
+                    }
+                    else
+                    {
+                        message.AppendLine($"Tool {toolnumber + 1}: {filamentText}Off");
+                    }
                 }
+
+                toolnumber++;
             }
 
-            if (printer["temperature"]["tool1"]["target"] > 0)
+            if (printer["temperature"]["bed"] != null)
             {
-                message.AppendLine($"Tool 2: {filament["selections"][1]["spool"]["name"]} ({filament["selections"][1]["spool"]["profile"]["material"]}) {printer["temperature"]["tool1"]["actual"]}/{printer["temperature"]["tool1"]["target"]}");
-            }
-            else
-            {
-                if (printer["temperature"]["tool1"]["actual"] > 40)
+                if (printer["temperature"]["bed"]["target"] > 0)
                 {
-                    message.AppendLine($"Tool 2: {filament["selections"][1]["spool"]["name"]} ({filament["selections"][1]["spool"]["profile"]["material"]}) {printer["temperature"]["tool1"]["actual"]} (Cooling)");
+                    message.AppendLine($"Bed: {printer["temperature"]["bed"]["actual"]}/{printer["temperature"]["bed"]["target"]}");
                 }
                 else
                 {
-                    message.AppendLine($"Tool 2: Off");
-                }
-            }
-
-            if (printer["temperature"]["bed"]["target"] > 0)
-            {
-                message.AppendLine($"Bed: {printer["temperature"]["bed"]["actual"]}/{printer["temperature"]["bed"]["target"]}");
-            }
-            else
-            {
-                if (printer["temperature"]["bed"]["actual"] > 35)
-                {
-                    message.AppendLine($"Bed: {printer["temperature"]["bed"]["actual"]} (Cooling)");
-                }
-                else
-                {
-                    message.AppendLine($"Bed: Off");
+                    if (printer["temperature"]["bed"]["actual"] > 35)
+                    {
+                        message.AppendLine($"Bed: {printer["temperature"]["bed"]["actual"]} (Cooling)");
+                    }
+                    else
+                    {
+                        message.AppendLine($"Bed: Off");
+                    }
                 }
             }
 
