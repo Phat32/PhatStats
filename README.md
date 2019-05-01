@@ -1,5 +1,7 @@
 # PhatStats
-A .NET Console app to gather OctoPrint stats to be overlayed on OBS
+A .NET Console app to gather OctoPrint stats to be overlayed on OBS I made for my printer.
+
+#### https://twitch.tv/phatprints
 
 This is a pretty simple app I put together to run my 3D printers live stream. It has the ability to start and stop the stream as well as get the printer data every second and write it to a text file.
 
