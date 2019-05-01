@@ -280,7 +280,7 @@ namespace Phat_Stats
 
                 if (printer["temperature"][$"tool{toolnumber}"]["target"] > 0)
                 {
-                    message.AppendLine($"Tool 1: {filamentText}{printer["temperature"][$"tool{toolnumber}"]["actual"]}/{printer["temperature"]["tool0"]["target"]}");
+                    message.AppendLine($"Tool 1: {filamentText}{printer["temperature"][$"tool{toolnumber}"]["actual"]}/{printer["temperature"][$"tool{toolnumber}"]["target"]}");
                 }
                 else
                 {
