@@ -284,9 +284,9 @@ namespace Phat_Stats
                 }
                 else
                 {
-                    if (printer["temperature"]["tool0"]["actual"] > 40)
+                    if (printer["temperature"][$"tool{toolnumber}"]["actual"] > 40)
                     {
-                        message.AppendLine($"Tool {toolnumber+1}: {filamentText}{printer["temperature"][$"tool{toolnumber}"]["actual"]} (Cooling)");
+                        message.AppendLine($"Tool {toolnumber+1}: {filamentText}{printer["temperature"][$"tool{toolnumber}"]["actual"]} (Off)");
                     }
                     else
                     {
@@ -305,9 +305,9 @@ namespace Phat_Stats
                 }
                 else
                 {
-                    if (printer["temperature"]["bed"]["actual"] > 35)
+                    if (printer["temperature"]["bed"]["actual"] > 28)
                     {
-                        message.AppendLine($"Bed: {printer["temperature"]["bed"]["actual"]} (Cooling)");
+                        message.AppendLine($"Bed: {printer["temperature"]["bed"]["actual"]} (Off)");
                     }
                     else
                     {
