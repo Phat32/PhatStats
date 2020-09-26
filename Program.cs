@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using Newtonsoft.Json.Linq;
+using System.Net;
+using OBSWebsocketDotNet;
 
 namespace Phat_Stats
 {
@@ -13,10 +15,14 @@ namespace Phat_Stats
     {
         private static readonly RestClient client = new RestClient(AppSettings.Get<string>("ApiUri"));
         private static readonly string printFile = $"{Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)}\\print.txt";
-        private static readonly string logFile = $"{Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)}\\log.txt";        
-        private static bool isStreaming = false;
+        private static readonly string logFile = $"{Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)}\\log.txt";
         private static bool isOn = false;
         private static DateTime standbyTime = DateTime.Now;
+        private static OBSWebsocket obs = new OBSWebsocket();
+        private static OutputStatus streamStatus;
+        private static bool startStream = false;
+        private static bool stopStream = false;
+
 
         static void Main(string[] args)
         {
@@ -46,12 +52,25 @@ namespace Phat_Stats
                 Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Starting up...");
 
                 var startTimeSpan = TimeSpan.Zero;
-                var periodTimeSpan = TimeSpan.FromSeconds(1);
+                var periodTimeSpan = TimeSpan.FromSeconds(2);
+                //var periodTimeSpan = TimeSpan.FromHours(1);
+
+                var startStreanTimeSpan = TimeSpan.FromSeconds(20);
+                var periodStreamTimeSpan = TimeSpan.FromMinutes(1);
+
+                obs.Connected += Obs_Connected;
+
+                obs.Connect($"ws://{AppSettings.Get<string>("IP")}:{AppSettings.Get<string>("Port")}", AppSettings.Get<string>("Password"));
 
                 var timer = new System.Threading.Timer((e) =>
                 {
                     GetPrint();
                 }, null, startTimeSpan, periodTimeSpan);
+
+                var streamTimer = new System.Threading.Timer((e) =>
+                {
+                    CheckStream();
+                }, null, startStreanTimeSpan, periodStreamTimeSpan);
 
                 if (AppSettings.Get<bool>("EnableLog"))
                 {
@@ -66,12 +85,17 @@ namespace Phat_Stats
             }
             catch (AppSettingNotFoundException ex)
             {
-                File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - ERROR: AppSetting with the key \"{ex.Message}\" is missing"});
+                File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - ERROR: AppSetting with the key \"{ex.Message}\" is missing" });
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - ERROR: {ex.Message}");
             }
+        }
+
+        private static void Obs_Connected(object sender, EventArgs e)
+        {
+            streamStatus = obs.GetStreamingStatus();
         }
 
         public static void GetPrint()
@@ -92,23 +116,22 @@ namespace Phat_Stats
 
                 var message = new StringBuilder();
 
+                var isStreaming = streamStatus.IsStreaming;
+
                 var job = JsonConvert.DeserializeObject<dynamic>(jobResponse.Content);
                 if (job["state"] == "Offline")
                 {
                     if (isStreaming)
                     {
-                        if (OBS.StopStream())
-                        {
-                            isStreaming = false;
-                        }
+                        stopStream = true;
                     }
 
                     message.AppendLine("Offline");
                 }
                 else
-                { 
-                var printer = JsonConvert.DeserializeObject<dynamic>(printerResponse.Content);                
-                var filament = JsonConvert.DeserializeObject<dynamic>(filamentResponse.Content);
+                {
+                    var printer = JsonConvert.DeserializeObject<dynamic>(printerResponse.Content);
+                    var filament = JsonConvert.DeserializeObject<dynamic>(filamentResponse.Content);
 
                     if (printer["state"] == null)
                     {
@@ -125,10 +148,7 @@ namespace Phat_Stats
 
                         if (DateTime.Now.Subtract(standbyTime).TotalMinutes > 30 && isStreaming)
                         {
-                            if (OBS.StopStream())
-                            {
-                                isStreaming = false;
-                            }
+                            PhatOBS.StopStream(obs);
                         }
 
                         message.AppendLine("Offline");
@@ -147,11 +167,10 @@ namespace Phat_Stats
 
                         if (DateTime.Now.Subtract(standbyTime).TotalMinutes > 30 && isStreaming)
                         {
-                            OBS.StopStream();
-                            isStreaming = false;
+                            stopStream = true;
                         }
 
-                        if (DateTime.Now.Subtract(standbyTime).TotalMinutes > 40 && !isStreaming  && isOn)
+                        if (DateTime.Now.Subtract(standbyTime).TotalMinutes > 40 && !isStreaming && isOn)
                         {
                             request = new RestRequest("api/plugin/psucontrol", Method.POST);
                             request.AddQueryParameter("apikey", AppSettings.Get<string>("ApiKey"));
@@ -175,12 +194,9 @@ namespace Phat_Stats
                     {
                         if (!isStreaming)
                         {
-                            if (OBS.StartStream())
-                            {
-                                isStreaming = true;
-                                isOn = true;
-                                standbyTime = DateTime.MinValue;
-                            }
+                            startStream = true;
+                            isOn = true;
+                            standbyTime = DateTime.MinValue;
                         }
 
                         if (standbyTime != DateTime.MinValue)
@@ -244,6 +260,17 @@ namespace Phat_Stats
 
                         message.AppendLine($"Printing for {printTime} with {printTimeLeft} left ({printTimeLeftOrigin})  {Math.Round(Convert.ToDecimal(job["progress"]["completion"]), 2, MidpointRounding.AwayFromZero)}%");
                         message.AppendLine($"File: {job["job"]["file"]["name"]}");
+
+                        var imageName = $"{job["job"]["file"]["name"].ToString().Replace(".gcode", "")}-{DateTime.Now.ToString("yyyyMMdd")}.png";
+                        var imageFile = $"{Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)}\\{imageName}";
+
+                        if (!File.Exists(imageFile))
+                        {
+                            var client = new WebClient();
+                            client.DownloadFile($"{AppSettings.Get<string>("ApiUri")}plugin/UltimakerFormatPackage/thumbnail/{ job["job"]["file"]["name"].ToString().Replace("gcode", "png") }?{ DateTime.Now.ToString("yyyyMMdd") }", imageFile);
+
+                            File.Copy(imageFile, $"{Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)}\\model.png", true);
+                        }
                     }
                 }
 
@@ -261,6 +288,24 @@ namespace Phat_Stats
                 }
                 Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - {ex.Message}");
             }
+        }
+
+        public static void CheckStream()
+        {
+            streamStatus = obs.GetStreamingStatus();
+
+            if (startStream && !streamStatus.IsStreaming)
+            {
+                PhatOBS.StartStream(obs);
+                startStream = false;
+            }
+
+            if (stopStream && streamStatus.IsStreaming)
+            {
+                PhatOBS.StopStream(obs);
+                stopStream = false;
+            }
+
         }
 
         private static string GetTemps(dynamic printer, dynamic filament)
@@ -286,7 +331,7 @@ namespace Phat_Stats
                 {
                     if (printer["temperature"][$"tool{toolnumber}"]["actual"] > 40)
                     {
-                        message.AppendLine($"Tool {toolnumber+1}: {filamentText}{printer["temperature"][$"tool{toolnumber}"]["actual"]} (Off)");
+                        message.AppendLine($"Tool {toolnumber + 1}: {filamentText}{printer["temperature"][$"tool{toolnumber}"]["actual"]} (Off)");
                     }
                     else
                     {
@@ -317,6 +362,6 @@ namespace Phat_Stats
             }
 
             return message.ToString().TrimEnd('\r', '\n');
-        }        
+        }
     }
 }

@@ -1,102 +1,87 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Windows.Forms;
+using OBSWebsocketDotNet;
+
 
 namespace Phat_Stats.Helpers
 {
-    public static class OBS
+    public static class PhatOBS
     {
         private static readonly string logFile = $"{Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)}\\log.txt";
-        private static bool obsFound = true;
 
-        // Activate an application window.
-        [DllImport("USER32.DLL")]
-        public static extern bool SetForegroundWindow(IntPtr hWnd);
-
-        private static bool SetObs()
+        // Send a series of key presses to the Calculator application.
+        public static bool StartStream(OBSWebsocket obs)
         {
-            IntPtr obs = IntPtr.Zero;
-
-            Process[] pname = Process.GetProcessesByName(AppSettings.Get<string>("OBS"));
-
-            var obsId = 0;
-            if (pname.Length != 0)
+            try
             {
-                obsId = pname[0].Id;
-                obs = pname[0].MainWindowHandle;
-            }
+                obs.StartStreaming();
 
-            // Verify that Calculator is a running process.
-            if (obsId == 0 || obs == IntPtr.Zero)
-            {
-                if (obsFound)
+                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Stream Started");
+                if (AppSettings.Get<bool>("EnableLog"))
                 {
-                    if (AppSettings.Get<bool>("EnableLog"))
-                    {
-                        File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - OBS does not appear to be running" });
-                    }
-                    Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - OBS does not appear to be running");
+                    File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Stream Started" });
+                }                
 
-                    obsFound = false;
+                return true;
+            }
+            catch (AuthFailureException ex)
+            {
+                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - {ex.Message}");
+                if (AppSettings.Get<bool>("EnableLog"))
+                {
+                    File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - {ex.Message}" });
+                }
+                
+
+                return false;
+            }
+            catch (ErrorResponseException ex)
+            {
+                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - {ex.Message}");
+                if (AppSettings.Get<bool>("EnableLog"))
+                {
+                    File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - {ex.Message}" });
                 }
 
                 return false;
             }
-
-            if (!obsFound)
+            catch (Exception ex)
             {
+                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - {ex.Message}");
                 if (AppSettings.Get<bool>("EnableLog"))
                 {
-                    File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - OBS has been detected" });
+                    File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - {ex.Message}" });
                 }
-                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - OBS has been detected");
-            }
 
-            SetForegroundWindow(obs);
-            return true;
+                return false;
+            }
         }
 
-        // Send a series of key presses to the Calculator application.
-        public static bool StartStream()
+        public static bool StopStream(OBSWebsocket obs)
         {
-            // Make Calculator the foreground application and send it 
-            // a set of calculations.
-
-            if (SetObs())
+            try
             {
-                SendKeys.SendWait(AppSettings.Get<string>("StartKey"));
+                obs.StopStreaming();
 
-                if (AppSettings.Get<bool>("EnableLog"))
-                {
-                    File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Stream Started" });
-                }
-                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Stream Started");
-
-                return true;
-            }
-
-            return false;
-        }
-
-        public static bool StopStream()
-        {
-            if (SetObs())
-            {
-                SendKeys.SendWait(AppSettings.Get<string>("StopKey"));
-
+                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Stream Stopped");
                 if (AppSettings.Get<bool>("EnableLog"))
                 {
                     File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Stream Stopped" });
-                }
-                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - Stream Stopped");
+                }                
 
                 return true;
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - {ex.Message}");
+                if (AppSettings.Get<bool>("EnableLog"))
+                {
+                    File.AppendAllLines(logFile, new List<string>() { $"{DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss")} - {ex.Message}" });
+                }                
 
-            return false;
+                return false;
+            }
         }
     }
 }
